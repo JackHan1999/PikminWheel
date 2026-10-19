@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3.5秒 毫秒倒數（按鈕配置版）</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+        body {
+            font-family: monospace; 
+            display: flex; 
+            flex-direction: column;
+            align-items: center; 
+            justify-content: center; 
+            height: 100vh; 
+            background-color: #111; 
+            color: #ff3333; 
+            margin: 0; 
+            cursor: pointer; /* 讓使用者知道整個畫面都可以點擊 */
+        }
+        
+        /* 六角形按鈕配置區塊 */
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 90px); /* 兩欄 */
+            grid-gap: 20px 40px; /* 上下間距 20px，左右間距 40px */
+            justify-content: center;
+            margin-bottom: 50px;
+            z-index: 10;
+        }
+
+        /* 透過 grid 屬性與 margin 做出特殊的交錯排列 */
+        .btn-3-5 { grid-column: 1 / span 2; margin: 0 auto; transform: translateY(0); }
+        .btn-3   { grid-column: 1; transform: translateX(-20px); }
+        .btn-4   { grid-column: 2; transform: translateX(20px); }
+        .btn-5-5 { grid-column: 1; transform: translateX(-20px); }
+        .btn-4-5 { grid-column: 2; transform: translateX(20px); }
+        .btn-5   { grid-column: 1 / span 2; margin: 0 auto; transform: translateY(0); }
+
+        /* 按鈕基礎樣式 */
+        .time-btn {
+            width: 80px;
+            padding: 10px 0;
+            font-size: 18px;
+            font-family: monospace;
+            font-weight: bold;
+            background-color: #111;
+            color: #ff3333;
+            border: 2px solid #ff3333;
+            border-radius: 6px;
+            cursor: pointer;
+            outline: none;
+            text-align: center;
+            transition: all 0.2s ease;
+        }
+        
+        /* 懸停與滑鼠點擊樣式 */
+        .time-btn:hover {
+            background-color: #222;
+            box-shadow: 0 0 8px rgba(255, 51, 51, 0.4);
+        }
+
+        /* 目前選中按鈕的樣式（強烈發光） */
+        .time-btn.active {
+            background-color: #ff3333;
+            color: #111;
+            box-shadow: 0 0 15px rgba(255, 51, 51, 0.8);
+        }
+
+        /* 倒數計時器主體（維持最初版風格） */
+        .timer-container {
+            text-align: center;
+        }
+        #timer { 
+            font-size: 80px; 
+            font-weight: bold; 
+            text-shadow: 0 0 10px rgba(255,51,51,0.5); 
+        }
+
+        /* 提示字 */
+        .hint {
+            margin-top: 30px;
+            font-size: 16px;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 幾何排列按鈕區塊 -->
+    <div class="button-grid" onclick="event.stopPropagation();">
+        <button class="time-btn btn-3-5 active" data-ms="3500">3.5</button>
+        <button class="time-btn btn-3" data-ms="3000">3</button>
+        <button class="time-btn btn-4" data-ms="4000">4</button>
+        <button class="time-btn btn-5-5" data-ms="5500">5.5</button>
+        <button class="time-btn btn-4-5" data-ms="4500">4.5</button>
+        <button class="time-btn btn-5" data-ms="5000">5</button>
+    </div>
+
+    <!-- 倒數顯示區塊 -->
+    <div class="timer-container">
+        <div id="timer">03.500</div>
+        <div class="hint">按【空白鍵】或【點擊畫面】開始 / 重新開始</div>
+    </div>
+
+    <script>
+        const timerEl = document.getElementById('timer');
+        const buttons = document.querySelectorAll('.time-btn');
+        
+        let countdownDuration = 3500; // 預設 3.5 秒
+        let animationFrameId = null;
+        let startTime = null;
+
+        // 格式化並更新顯示
+        function updateDisplay(ms) {
+            const seconds = Math.floor(ms / 1000);
+            const milliseconds = Math.floor(ms % 1000);
+            
+            const displaySec = String(seconds).padStart(2, '0');
+            const displayMs = String(milliseconds).padStart(3, '0');
+            timerEl.textContent = `${displaySec}.${displayMs}`;
+        }
+
+        // 為所有按鈕綁定切換事件
+        buttons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                // 切換 active 樣式
+                buttons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                // 更新目前設定時間並重設
+                countdownDuration = parseInt(btn.getAttribute('data-ms'));
+                resetTimer();
+            });
+        });
+
+        function resetTimer() {
+            cancelAnimationFrame(animationFrameId);
+            timerEl.style.color = '#ff3333';
+            timerEl.style.textShadow = '0 0 10px rgba(255,51,51,0.5)';
+            updateDisplay(countdownDuration);
+        }
+
+        // 開始或重新開始倒數
+        function startTimer() {
+            cancelAnimationFrame(animationFrameId); 
+            timerEl.style.color = '#ff3333';
+            timerEl.style.textShadow = '0 0 10px rgba(255,51,51,0.5)';
+            
+            startTime = performance.now();
+            
+            function run(now) {
+                const elapsed = now - startTime;
+                const remaining = Math.max(0, countdownDuration - elapsed);
+                
+                updateDisplay(remaining);
+
+                if (remaining > 0) {
+                    animationFrameId = requestAnimationFrame(run);
+                } else {
+                    // 時間到變綠色
+                    timerEl.style.color = '#00ff00'; 
+                    timerEl.style.textShadow = '0 0 10px rgba(0,255,0,0.5)';
+                    timerEl.textContent = "00.000 - Time Up!";
+                }
+            }
+            animationFrameId = requestAnimationFrame(run);
+        }
+
+        // 點擊網頁（排除按鈕區塊）觸發
+        document.body.addEventListener('click', () => {
+            startTimer();
+        });
+
+        // 監聽鍵盤空白鍵
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault(); 
+                startTimer();
+            }
+        });
+    </script>
+</body>
+</html>
+
